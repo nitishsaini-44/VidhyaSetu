@@ -1,4 +1,3 @@
-# add_student.py
 import cv2
 from models.insightface_model import load_model
 from utils import load_embeddings, save_embeddings, save_student_to_csv

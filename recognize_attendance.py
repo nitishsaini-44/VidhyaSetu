@@ -1,4 +1,3 @@
-# recognize_attendance.py
 import cv2
 import pandas as pd
 from datetime import datetime
@@ -9,7 +8,6 @@ THRESHOLD = 0.5
 
 model = load_model()
 db = load_embeddings()
-camera_url="http://10.52.80.111:8080/video"
 
 cap = cv2.VideoCapture(0)
 marked = set()

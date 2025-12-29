@@ -1,4 +1,3 @@
-# remove_student.py
 from utils import (
     remove_student_from_csv,
     remove_student_from_embeddings
