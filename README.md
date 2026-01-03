@@ -210,6 +210,4 @@ The frontend will run on `http://localhost:3000` and proxy API requests to `http
 
 This platform is designed to work alongside the existing Python-based face recognition attendance system. The `User` model includes a `face_encoding` field (128-d vector) that can be populated by the Python system for face-based attendance marking.
 
-## 📄 License
 
-MIT License
