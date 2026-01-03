@@ -1,15 +1,20 @@
+# Core
 numpy>=1.23
-pandas>=1.5
-scikit-learn>=1.2
 
-opencv-python>=4.8
+# Face Recognition & Image Processing
+opencv-python-headless>=4.8
+insightface>=0.7
+onnxruntime>=1.15
+retina-face>=0.0.13
+tqdm
 
+# Deep Learning (InsightFace dependencies)
 torch>=2.0
 torchvision>=0.15
 torchaudio>=2.0
+scikit-learn>=1.2
 
-insightface>=0.7
-onnxruntime>=1.15
-
-retina-face>=0.0.13
-tqdm
+# API Server
+fastapi
+uvicorn
+python-multipart

@@ -26,6 +26,7 @@ app.use('/api/resources', require('./routes/resourceRoutes'));
 app.use('/api/performance', require('./routes/performanceRoutes'));
 app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/classes', require('./routes/classRoutes'));
+app.use('/api/face', require('./routes/faceRoutes'));
 
 // Health check
 app.get('/api/health', (req, res) => {

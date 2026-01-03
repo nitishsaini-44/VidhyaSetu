@@ -1,25 +1,32 @@
 import cv2
-import pandas as pd
-from datetime import datetime
+
 from models.insightface_model import load_model
 from utils import load_embeddings, cosine_similarity
 
 THRESHOLD = 0.5
 
+import numpy as np
+
+# Load model and db at module level
 model = load_model()
 db = load_embeddings()
 
-cap = cv2.VideoCapture(0)
-marked = set()
+def recognize_face(image_bytes):
+    try:
+        # Convert bytes to numpy array
+        nparr = np.frombuffer(image_bytes, np.uint8)
+        frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        
+        if frame is None:
+            return {"status": "error", "message": "Failed to decode image"}
+            
+        faces = model.get(frame)
+        if len(faces) == 0:
+             return {"status": "success", "match": False, "message": "No face detected"}
 
-while True:
-    ret, frame = cap.read()
-    if not ret:
-        break
-
-    faces = model.get(frame)
-
-    for face in faces:
+        # Process the largest face if multiple
+        face = sorted(faces, key=lambda x: (x.bbox[2]-x.bbox[0]) * (x.bbox[3]-x.bbox[1]), reverse=True)[0]
+        
         emb = face.embedding
         best_match = None
         best_score = 0
@@ -30,21 +37,27 @@ while True:
                 best_score = score
                 best_match = sid
 
-        if best_score > THRESHOLD and best_match not in marked:
+        if best_score > THRESHOLD:
             name = db[best_match]["name"]
-            time_now = datetime.now().strftime("%H:%M:%S")
+            # Optional: Mark attendance here if desired, or let caller handle it
+            # time_now = datetime.now().strftime("%H:%M:%S")
+            # We will just return the data
+            
+            return {
+                "status": "success",
+                "match": True,
+                "student_id": best_match,
+                "name": name,
+                "confidence": float(best_score)
+            }
+        else:
+            return {
+                "status": "success",
+                "match": False, 
+                "message": "Face not recognized",
+                "confidence": float(best_score)
+            }
 
-            df = pd.DataFrame([[best_match, name, time_now]],
-                              columns=["ID", "Name", "Time"])
-            df.to_csv("attendance/attendance.csv",
-                      mode="a", header=False, index=False)
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
-            marked.add(best_match)
-            print(f"Attendance marked: {name}")
-
-    cv2.imshow("Attendance System", frame)
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
-
-cap.release()
-cv2.destroyAllWindows()
