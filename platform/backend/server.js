@@ -33,16 +33,14 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'Server is running', timestamp: new Date() });
 });
 
-// Serve React frontend in production
-if (process.env.NODE_ENV === 'production') {
-  // Serve static files from the React app build folder
-  app.use(express.static(path.join(__dirname, '../frontend/build')));
+// Serve React frontend
+// Serve static files from the React app build folder
+app.use(express.static(path.join(__dirname, '../frontend/build')));
 
-  // For any route not handled by API, serve React's index.html
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/build', 'index.html'));
-  });
-}
+// For any route not handled by API, serve React's index.html
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/build', 'index.html'));
+});
 
 // Error handling middleware
 app.use((err, req, res, next) => {
