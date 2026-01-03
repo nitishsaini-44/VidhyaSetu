@@ -52,9 +52,9 @@ const ManagementUsers = () => {
         email: user.email,
         password: '',
         role: user.role,
-        class_id: user.class_id || '',
-        subject: user.subject || '',
-        department: user.department || '',
+        class_id: user.studentInfo?.class || user.class_id || '',
+        subject: user.teacherInfo?.specialization || user.subject || '',
+        department: user.teacherInfo?.department || user.department || '',
         isActive: user.isActive
       });
     } else {
@@ -224,7 +224,7 @@ const ManagementUsers = () => {
                         {user.role}
                       </span>
                     </td>
-                    <td>{user.class_id || user.subject || '-'}</td>
+                    <td>{user.studentInfo?.class || user.class_id || user.teacherInfo?.specialization || user.subject || '-'}</td>
                     <td>
                       <span className={`badge ${user.isActive ? 'badge-success' : 'badge-danger'}`}>
                         {user.isActive ? 'Active' : 'Inactive'}

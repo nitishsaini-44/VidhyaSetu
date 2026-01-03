@@ -14,6 +14,7 @@ import StudentDashboard from './pages/student/StudentDashboard';
 import StudentAttendance from './pages/student/StudentAttendance';
 import StudentPerformance from './pages/student/StudentPerformance';
 import StudentQuiz from './pages/student/StudentQuiz';
+import StudentAIChatbot from './pages/student/StudentAIChatbot';
 
 // Teacher Pages
 import TeacherDashboard from './pages/teacher/TeacherDashboard';
@@ -21,11 +22,13 @@ import TeacherAttendance from './pages/teacher/TeacherAttendance';
 import TeacherResources from './pages/teacher/TeacherResources';
 import TeacherStudents from './pages/teacher/TeacherStudents';
 import TeacherAIAssistant from './pages/teacher/TeacherAIAssistant';
+import TeacherQuizHistory from './pages/teacher/TeacherQuizHistory';
 
 // Management Pages
 import ManagementDashboard from './pages/management/ManagementDashboard';
 import ManagementUsers from './pages/management/ManagementUsers';
 import ManagementReports from './pages/management/ManagementReports';
+import ManagementFaceRecognition from './pages/management/ManagementFaceRecognition';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -98,7 +101,9 @@ function App() {
         <Route path="dashboard" element={<StudentDashboard />} />
         <Route path="attendance" element={<StudentAttendance />} />
         <Route path="performance" element={<StudentPerformance />} />
-        <Route path="quiz/:resourceId" element={<StudentQuiz />} />
+        <Route path="quiz" element={<StudentQuiz />} />
+        <Route path="quiz/:quizId" element={<StudentQuiz />} />
+        <Route path="ai-assistant" element={<StudentAIChatbot />} />
       </Route>
 
       {/* Teacher Routes */}
@@ -112,6 +117,7 @@ function App() {
         <Route path="resources" element={<TeacherResources />} />
         <Route path="students" element={<TeacherStudents />} />
         <Route path="ai-assistant" element={<TeacherAIAssistant />} />
+        <Route path="quiz-history" element={<TeacherQuizHistory />} />
       </Route>
 
       {/* Management Routes */}
@@ -123,6 +129,7 @@ function App() {
         <Route path="dashboard" element={<ManagementDashboard />} />
         <Route path="users" element={<ManagementUsers />} />
         <Route path="reports" element={<ManagementReports />} />
+        <Route path="face-recognition" element={<ManagementFaceRecognition />} />
       </Route>
 
       {/* Default redirect */}

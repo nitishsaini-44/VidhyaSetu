@@ -50,13 +50,15 @@ const userSchema = new mongoose.Schema({
   studentInfo: {
     rollNumber: { type: String, sparse: true },
     registrationNumber: { type: String, sparse: true },
-    class: { type: mongoose.Schema.Types.ObjectId, ref: 'Class' },
+    class: { type: mongoose.Schema.Types.Mixed }, // Can be ObjectId or string (e.g., "10-A")
     section: { type: String, uppercase: true },
     admissionDate: Date,
     guardianName: String,
     guardianPhone: String,
     guardianEmail: String,
-    faceEmbedding: { type: [Number], select: false }
+    faceEmbedding: { type: [Number], select: false },
+    faceRegistered: { type: Boolean, default: false },
+    faceRegistrationId: { type: String, default: null }
   },
 
   // Teacher-specific fields

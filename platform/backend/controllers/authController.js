@@ -23,12 +23,20 @@ const registerUser = async (req, res) => {
     };
 
     // Add role-specific fields
-    if (role === 'student') {
-      userData.class_id = class_id;
-      userData.parent_email = parent_email;
+    if (role === 'student' || !role) {
+      userData.studentInfo = {
+        class: class_id || null,
+        guardianEmail: parent_email || null
+      };
     } else if (role === 'teacher') {
-      userData.subject = subject;
-      userData.department = department;
+      userData.teacherInfo = {
+        department: department || null,
+        subjects: []
+      };
+      // Store subject temporarily - can be mapped to Subject model later
+      if (subject) {
+        userData.teacherInfo.specialization = subject;
+      }
     }
 
     const user = await User.create(userData);
@@ -39,6 +47,8 @@ const registerUser = async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        studentInfo: user.studentInfo,
+        teacherInfo: user.teacherInfo,
         token: generateToken(user._id)
       });
     }
@@ -56,7 +66,7 @@ const loginUser = async (req, res) => {
     const { email, password } = req.body;
 
     // Check for user email - include password field explicitly
-    const user = await User.findOne({ email }).select('+password');
+    let user = await User.findOne({ email }).select('+password');
 
     if (!user) {
       return res.status(401).json({ message: 'Invalid email or password' });
@@ -75,6 +85,13 @@ const loginUser = async (req, res) => {
     // Update last login
     user.lastLogin = new Date();
     await user.save({ validateBeforeSave: false });
+
+    // Re-fetch with populated fields for response
+    user = await User.findById(user._id)
+      .select('-password')
+      .populate('studentInfo.class', 'name section grade')
+      .populate('teacherInfo.subjects', 'name code')
+      .populate('teacherInfo.assignedClasses', 'name section grade');
 
     res.json({
       _id: user._id,
@@ -98,7 +115,11 @@ const loginUser = async (req, res) => {
 // @access  Private
 const getMe = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).select('-password');
+    const user = await User.findById(req.user._id)
+      .select('-password')
+      .populate('studentInfo.class', 'name section grade')
+      .populate('teacherInfo.subjects', 'name code')
+      .populate('teacherInfo.assignedClasses', 'name section grade');
     res.json(user);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });

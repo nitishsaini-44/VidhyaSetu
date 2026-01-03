@@ -8,7 +8,8 @@ const {
   deleteClass,
   getClassStudents,
   addStudentToClass,
-  seedClasses
+  seedClasses,
+  getClassesWithStudents
 } = require('../controllers/classController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
@@ -17,6 +18,9 @@ router.use(protect);
 
 // @route   GET /api/classes
 router.get('/', getClasses);
+
+// @route   GET /api/classes/with-students - Get classes that have enrolled students
+router.get('/with-students', authorize('teacher', 'management'), getClassesWithStudents);
 
 // @route   POST /api/classes/seed - Seed initial classes
 router.post('/seed', authorize('management'), seedClasses);

@@ -37,7 +37,7 @@ const RegisterPage = () => {
     try {
       const { confirmPassword, ...userData } = formData;
       const user = await register(userData);
-      toast.success(`Welcome to VidyaSetu, ${user.name}!`);
+      toast.success(`Welcome to VidyaSetu AI, ${user.name}!`);
       
       const dashboardRoutes = {
         student: '/student/dashboard',

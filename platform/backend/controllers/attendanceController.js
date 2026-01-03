@@ -108,9 +108,37 @@ const markAttendance = async (req, res) => {
     const targetDate = new Date(date);
     targetDate.setHours(0, 0, 0, 0);
 
+    // Resolve class_id to ObjectId if it's a string like "10-A"
+    let resolvedClassId = class_id;
+    if (!isValidObjectId(class_id)) {
+      const classMatch = class_id.match(/^(\d+)-([A-Za-z])$/);
+      if (classMatch) {
+        let classDoc = await Class.findOne({ 
+          grade: classMatch[1], 
+          section: classMatch[2].toUpperCase() 
+        });
+        if (classDoc) {
+          resolvedClassId = classDoc._id;
+        } else {
+          // Auto-create the class if it doesn't exist
+          const currentYear = new Date().getFullYear();
+          classDoc = await Class.create({
+            name: `Class ${classMatch[1]}-${classMatch[2].toUpperCase()}`,
+            grade: classMatch[1],
+            section: classMatch[2].toUpperCase(),
+            academicYear: `${currentYear}-${currentYear + 1}`,
+            isActive: true
+          });
+          resolvedClassId = classDoc._id;
+        }
+      } else {
+        return res.status(400).json({ message: `Invalid class ID format: ${class_id}` });
+      }
+    }
+
     // Find existing attendance for this class and date
     let attendance = await Attendance.findOne({
-      class: class_id,
+      class: resolvedClassId,
       date: {
         $gte: targetDate,
         $lt: new Date(targetDate.getTime() + 24 * 60 * 60 * 1000)
@@ -147,7 +175,7 @@ const markAttendance = async (req, res) => {
     // Create new attendance for the class
     attendance = await Attendance.create({
       date: targetDate,
-      class: class_id,
+      class: resolvedClassId,
       subject: subject_id,
       session: session || 'full-day',
       records: [{
@@ -183,9 +211,53 @@ const bulkMarkAttendance = async (req, res) => {
     const targetDate = new Date(date);
     targetDate.setHours(0, 0, 0, 0);
 
+    // Resolve class_id to ObjectId if it's a string like "10-A" or "10A" or "9a"
+    let resolvedClassId = class_id;
+    if (!isValidObjectId(class_id)) {
+      // Try different class name formats
+      const classMatch = class_id.match(/^(\d+)[- ]?([A-Za-z])?$/i);
+      if (classMatch) {
+        const grade = classMatch[1];
+        const section = (classMatch[2] || 'A').toUpperCase();
+        
+        let classDoc = await Class.findOne({ 
+          $or: [
+            { grade: grade, section: section },
+            { name: new RegExp(`^Class\\s*${grade}[\\s-]*${section}$`, 'i') },
+            { name: new RegExp(`^${grade}[\\s-]*${section}$`, 'i') }
+          ]
+        });
+        
+        if (classDoc) {
+          resolvedClassId = classDoc._id;
+        } else {
+          // Auto-create the class if it doesn't exist
+          const currentYear = new Date().getFullYear();
+          classDoc = await Class.create({
+            name: `Class ${grade}-${section}`,
+            grade: grade,
+            section: section,
+            academicYear: `${currentYear}-${currentYear + 1}`,
+            isActive: true
+          });
+          resolvedClassId = classDoc._id;
+        }
+      } else {
+        // If still not matched, try to find by exact name
+        const classDoc = await Class.findOne({ 
+          name: new RegExp(`^${class_id}$`, 'i') 
+        });
+        if (classDoc) {
+          resolvedClassId = classDoc._id;
+        } else {
+          return res.status(400).json({ message: `Invalid class ID format: ${class_id}` });
+        }
+      }
+    }
+
     // Find existing attendance for this class and date
     let attendance = await Attendance.findOne({
-      class: class_id,
+      class: resolvedClassId,
       date: {
         $gte: targetDate,
         $lt: new Date(targetDate.getTime() + 24 * 60 * 60 * 1000)
@@ -224,7 +296,7 @@ const bulkMarkAttendance = async (req, res) => {
       // Create new attendance
       attendance = await Attendance.create({
         date: targetDate,
-        class: class_id,
+        class: resolvedClassId,
         subject: subject_id,
         session: session || 'full-day',
         records,

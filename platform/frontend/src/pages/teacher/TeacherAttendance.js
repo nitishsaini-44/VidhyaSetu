@@ -19,36 +19,17 @@ const TeacherAttendance = () => {
 
   const fetchClasses = async () => {
     try {
-      // Pass all=true to get all classes for attendance marking
-      const res = await api.get('/classes?all=true');
-      setClasses(res.data);
-      
-      // If no classes returned from API, use fallback
-      if (res.data.length === 0) {
-        setClasses([
-          { _id: '9-A', name: 'Class 9-A', section: 'A' },
-          { _id: '9-B', name: 'Class 9-B', section: 'B' },
-          { _id: '10-A', name: 'Class 10-A', section: 'A' },
-          { _id: '10-B', name: 'Class 10-B', section: 'B' },
-          { _id: '11-A', name: 'Class 11-A', section: 'A' },
-          { _id: '11-B', name: 'Class 11-B', section: 'B' },
-          { _id: '12-A', name: 'Class 12-A', section: 'A' },
-          { _id: '12-B', name: 'Class 12-B', section: 'B' }
-        ]);
+      // Fetch only classes that have enrolled students
+      const res = await api.get('/classes/with-students');
+      if (res.data && res.data.length > 0) {
+        setClasses(res.data);
+      } else {
+        setClasses([]);
+        console.log('No classes with enrolled students found');
       }
     } catch (error) {
       console.error('Error fetching classes:', error);
-      // Fallback to default classes if API fails
-      setClasses([
-        { _id: '9-A', name: 'Class 9-A', section: 'A' },
-        { _id: '9-B', name: 'Class 9-B', section: 'B' },
-        { _id: '10-A', name: 'Class 10-A', section: 'A' },
-        { _id: '10-B', name: 'Class 10-B', section: 'B' },
-        { _id: '11-A', name: 'Class 11-A', section: 'A' },
-        { _id: '11-B', name: 'Class 11-B', section: 'B' },
-        { _id: '12-A', name: 'Class 12-A', section: 'A' },
-        { _id: '12-B', name: 'Class 12-B', section: 'B' }
-      ]);
+      setClasses([]);
     }
   };
 
@@ -149,12 +130,12 @@ const TeacherAttendance = () => {
               <select
                 value={selectedClass}
                 onChange={(e) => setSelectedClass(e.target.value)}
-                style={{ padding: '0.75rem', borderRadius: 'var(--radius)', border: '1px solid var(--border-color)', minWidth: '150px' }}
+                style={{ padding: '0.75rem', borderRadius: 'var(--radius)', border: '1px solid var(--border-color)', minWidth: '200px' }}
               >
                 <option value="">Choose a class</option>
                 {classes.map(cls => (
                   <option key={cls._id} value={cls._id}>
-                    {cls.name || `Class ${cls.grade}-${cls.section}`}
+                    {cls.displayName || cls.name || `Class ${cls._id}`} ({cls.studentCount || 0} students)
                   </option>
                 ))}
               </select>
@@ -207,14 +188,14 @@ const TeacherAttendance = () => {
           <div className="card-body">
             <div className="empty-state">
               <div className="empty-state-icon"><FiUsers size={48} /></div>
-              <p className="empty-state-text">No students found in {selectedClass}</p>
+              <p className="empty-state-text">No students found in {classes.find(c => c._id === selectedClass)?.displayName || classes.find(c => c._id === selectedClass)?.name || selectedClass}</p>
             </div>
           </div>
         </div>
       ) : (
         <div className="card">
           <div className="card-header">
-            <h3 className="card-title">Class {selectedClass} - {students.length} Students</h3>
+            <h3 className="card-title">{classes.find(c => c._id === selectedClass)?.displayName || classes.find(c => c._id === selectedClass)?.name || `Class ${selectedClass}`} - {students.length} Students</h3>
             <span className="badge badge-primary">{selectedDate}</span>
           </div>
           <div className="card-body">

@@ -1,0 +1,19 @@
+{
+  "faces": {
+    "69594b598d083651c4da7a55": {
+      "studentId": "69594b598d083651c4da7a55",
+      "name": "Nishant",
+      "faceToken": "4f2b9dd07fd34389bcc66132b3acfd04",
+      "registeredAt": "2026-01-03T20:05:00.307Z",
+      "provider": "facepp"
+    },
+    "6959678d1ce0746fdca902c4": {
+      "studentId": "6959678d1ce0746fdca902c4",
+      "name": "vikas",
+      "faceToken": "c8e43ca774c660f222e8437eb9662dff",
+      "registeredAt": "2026-01-03T20:03:27.788Z",
+      "provider": "facepp"
+    }
+  },
+  "lastUpdated": "2026-01-03T20:05:00.307Z"
+}

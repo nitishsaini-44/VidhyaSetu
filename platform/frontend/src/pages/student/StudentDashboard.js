@@ -18,17 +18,21 @@ const StudentDashboard = () => {
 
   const fetchDashboardData = async () => {
     try {
-      const [attendanceRes, performanceRes, recentRes] = await Promise.all([
+      const [attendanceRes, quizHistoryRes] = await Promise.all([
         api.get('/attendance/stats'),
-        api.get('/performance/stats'),
-        api.get('/performance?limit=5')
+        api.get('/resources/quizzes/student-history')
       ]);
+
+      const quizHistory = quizHistoryRes.data || [];
+      const avgPercentage = quizHistory.length > 0 
+        ? quizHistory.reduce((sum, q) => sum + q.percentage, 0) / quizHistory.length 
+        : 0;
 
       setStats({
         attendance: attendanceRes.data,
-        performance: performanceRes.data.overall || { avgPercentage: 0, totalQuizzes: 0 }
+        performance: { avgPercentage, totalQuizzes: quizHistory.length }
       });
-      setRecentPerformance(recentRes.data.slice(0, 5));
+      setRecentPerformance(quizHistory.slice(0, 5));
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
@@ -45,15 +49,53 @@ const StudentDashboard = () => {
     );
   }
 
+  // Get student's class from different possible locations
+  const rawClass = user?.studentInfo?.class || user?.class_id || user?.class;
+  // Handle different class formats - could be string, ObjectId, or object with name
+  let studentClass = 'Not assigned';
+  if (rawClass) {
+    if (typeof rawClass === 'object' && rawClass.name) {
+      // If class is populated object with name
+      studentClass = rawClass.name;
+    } else if (typeof rawClass === 'string') {
+      // If it's a string, check if it's not just an ObjectId
+      if (!/^[a-fA-F0-9]{24}$/.test(rawClass)) {
+        studentClass = rawClass;
+      }
+    } else {
+      // Could be an ObjectId object - try toString and check
+      const classStr = String(rawClass);
+      if (!/^[a-fA-F0-9]{24}$/.test(classStr) && classStr.length < 30) {
+        studentClass = classStr;
+      }
+    }
+  }
+
   return (
     <div>
       <div style={{ marginBottom: '2rem' }}>
         <h2 style={{ fontSize: '1.5rem', fontWeight: '600', marginBottom: '0.5rem' }}>
           Welcome back, {user?.name}! 👋
         </h2>
-        <p style={{ color: 'var(--text-secondary)' }}>
-          Class: {user?.class_id || 'Not assigned'} | Here's your overview for today
-        </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            padding: '0.5rem 1rem',
+            background: 'linear-gradient(135deg, var(--primary-color), var(--secondary-color))',
+            borderRadius: 'var(--radius-lg)',
+            color: 'white',
+            fontWeight: '600',
+            fontSize: '0.9rem'
+          }}>
+            <FiBookOpen size={16} />
+            Class: {studentClass}
+          </div>
+          <p style={{ color: 'var(--text-secondary)', margin: 0 }}>
+            Here's your overview for today
+          </p>
+        </div>
       </div>
 
       {/* Stats Grid */}
@@ -117,10 +159,10 @@ const StudentDashboard = () => {
                 <thead>
                   <tr>
                     <th>Subject</th>
-                    <th>Topic</th>
+                    <th>Quiz</th>
                     <th>Score</th>
                     <th>Date</th>
-                    <th>Feedback</th>
+                    <th>Grade</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -134,8 +176,21 @@ const StudentDashboard = () => {
                         </span>
                       </td>
                       <td>{new Date(perf.date).toLocaleDateString()}</td>
-                      <td style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {perf.ai_feedback || '-'}
+                      <td>
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '50%',
+                          fontWeight: '700',
+                          fontSize: '0.8rem',
+                          background: perf.percentage >= 80 ? 'rgba(16, 185, 129, 0.15)' : perf.percentage >= 60 ? 'rgba(79, 70, 229, 0.15)' : perf.percentage >= 40 ? 'rgba(245, 158, 11, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                          color: perf.percentage >= 80 ? 'var(--secondary-color)' : perf.percentage >= 60 ? 'var(--primary-color)' : perf.percentage >= 40 ? 'var(--warning-color)' : 'var(--danger-color)'
+                        }}>
+                          {perf.percentage >= 90 ? 'A+' : perf.percentage >= 80 ? 'A' : perf.percentage >= 70 ? 'B+' : perf.percentage >= 60 ? 'B' : perf.percentage >= 50 ? 'C' : perf.percentage >= 40 ? 'D' : 'F'}
+                        </span>
                       </td>
                     </tr>
                   ))}

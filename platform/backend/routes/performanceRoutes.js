@@ -4,7 +4,9 @@ const {
   getPerformance, 
   submitQuiz, 
   getPerformanceStats,
-  aiQuery 
+  aiQuery,
+  getLeaderboard,
+  getClassStats
 } = require('../controllers/performanceController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
@@ -16,6 +18,14 @@ router.get('/', getPerformance);
 
 // @route   GET /api/performance/stats
 router.get('/stats', getPerformanceStats);
+
+// @route   GET /api/performance/leaderboard
+// @desc    Get top performing students
+router.get('/leaderboard', authorize('teacher', 'management'), getLeaderboard);
+
+// @route   GET /api/performance/class-stats
+// @desc    Get class-wide performance statistics
+router.get('/class-stats', authorize('teacher', 'management'), getClassStats);
 
 // @route   POST /api/performance/submit-quiz
 router.post('/submit-quiz', authorize('student'), submitQuiz);

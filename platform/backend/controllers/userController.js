@@ -17,7 +17,7 @@ const getUsers = async (req, res) => {
     let query = {};
 
     if (role) query.role = role;
-    if (class_id) query.class_id = class_id;
+    if (class_id) query['studentInfo.class'] = class_id;
     if (search) {
       query.$or = [
         { name: { $regex: search, $options: 'i' } },
@@ -113,9 +113,29 @@ const updateUser = async (req, res) => {
     user.name = name || user.name;
     user.email = email || user.email;
     user.role = role || user.role;
-    user.class_id = class_id || user.class_id;
-    user.subject = subject || user.subject;
-    user.department = department || user.department;
+    
+    // Update student-specific fields
+    if (user.role === 'student' || role === 'student') {
+      if (!user.studentInfo) {
+        user.studentInfo = {};
+      }
+      if (class_id !== undefined) {
+        user.studentInfo.class = class_id || null;
+      }
+    }
+    
+    // Update teacher-specific fields
+    if (user.role === 'teacher' || role === 'teacher') {
+      if (!user.teacherInfo) {
+        user.teacherInfo = {};
+      }
+      if (subject) {
+        user.teacherInfo.specialization = subject;
+      }
+      if (department) {
+        user.teacherInfo.department = department;
+      }
+    }
     
     if (typeof isActive === 'boolean') {
       user.isActive = isActive;
@@ -127,7 +147,11 @@ const updateUser = async (req, res) => {
       name: updatedUser.name,
       email: updatedUser.email,
       role: updatedUser.role,
-      class_id: updatedUser.class_id,
+      class_id: updatedUser.studentInfo?.class || null,
+      subject: updatedUser.teacherInfo?.specialization || null,
+      department: updatedUser.teacherInfo?.department || null,
+      studentInfo: updatedUser.studentInfo,
+      teacherInfo: updatedUser.teacherInfo,
       isActive: updatedUser.isActive
     });
   } catch (error) {
@@ -165,7 +189,7 @@ const getDashboardStats = async (req, res) => {
     // Get class distribution
     const classDistribution = await User.aggregate([
       { $match: { role: 'student' } },
-      { $group: { _id: '$class_id', count: { $sum: 1 } } },
+      { $group: { _id: '$studentInfo.class', count: { $sum: 1 } } },
       { $sort: { _id: 1 } }
     ]);
 

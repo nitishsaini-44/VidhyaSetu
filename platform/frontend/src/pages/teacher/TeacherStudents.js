@@ -189,7 +189,7 @@ const TeacherStudents = () => {
                           </div>
                         </td>
                         <td style={{ color: 'var(--text-secondary)' }}>{student.email}</td>
-                        <td><span className="badge badge-primary">{student.class_id || '-'}</span></td>
+                        <td><span className="badge badge-primary">{student.studentInfo?.class || student.class_id || '-'}</span></td>
                         <td>
                           <button 
                             className="btn btn-secondary btn-sm"
@@ -238,7 +238,7 @@ const TeacherStudents = () => {
                 </div>
                 <h4 style={{ fontWeight: '600' }}>{selectedStudent.name}</h4>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>{selectedStudent.email}</p>
-                <span className="badge badge-primary">{selectedStudent.class_id || 'No Class'}</span>
+                <span className="badge badge-primary">{selectedStudent.studentInfo?.class || selectedStudent.class_id || 'No Class'}</span>
               </div>
 
               {studentStats && (

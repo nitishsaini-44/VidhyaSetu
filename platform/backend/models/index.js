@@ -5,6 +5,7 @@ const Attendance = require('./Attendance');
 const Performance = require('./Performance');
 const Resource = require('./Resource');
 const Quiz = require('./Quiz');
+const QuizAttempt = require('./QuizAttempt');
 const LessonPlan = require('./LessonPlan');
 const AIConversation = require('./AIConversation');
 const Notification = require('./Notification');
@@ -17,6 +18,7 @@ module.exports = {
   Performance,
   Resource,
   Quiz,
+  QuizAttempt,
   LessonPlan,
   AIConversation,
   Notification

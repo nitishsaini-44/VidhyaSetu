@@ -14,7 +14,14 @@ import numpy as np
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from models.insightface_model import load_model
-from utils import load_embeddings, cosine_similarity
+from utils import (
+    load_embeddings, 
+    cosine_similarity, 
+    save_embeddings, 
+    save_student_to_csv,
+    remove_student_from_embeddings,
+    remove_student_from_csv
+)
 
 app = Flask(__name__)
 
@@ -233,7 +240,9 @@ def get_stats():
 
 @app.route("/api/register", methods=["POST", "OPTIONS"])
 def register_student():
-    """API endpoint to register a new student by running add_student.py"""
+    """API endpoint to register a new student directly (without subprocess)"""
+    global embeddings_db
+    
     # Handle preflight request
     if request.method == "OPTIONS":
         return jsonify({"status": "ok"}), 200
@@ -257,59 +266,71 @@ def register_student():
     if not image_path and not image_data:
         return jsonify({"success": False, "message": "Image is required (capture from camera or provide path)"}), 400
     
-    # If image_data is provided (from camera), save it to a file
-    if image_data:
-        try:
-            # Create captured_images directory if not exists
-            os.makedirs(CAPTURED_IMAGES_DIR, exist_ok=True)
-            
-            # Decode base64 image
-            image_bytes = base64.b64decode(image_data.split(",")[1] if "," in image_data else image_data)
-            
-            # Save with unique filename
-            filename = f"{student_id}_{uuid.uuid4().hex[:8]}.jpg"
-            full_image_path = os.path.join(CAPTURED_IMAGES_DIR, filename)
-            
-            with open(full_image_path, "wb") as f:
-                f.write(image_bytes)
-        except Exception as e:
-            return jsonify({"success": False, "message": f"Failed to save captured image: {str(e)}"}), 500
-    else:
-        # Check if image path exists
-        full_image_path = os.path.join(BASE_DIR, image_path) if not os.path.isabs(image_path) else image_path
-        if not os.path.exists(full_image_path):
-            return jsonify({"success": False, "message": f"Image not found: {image_path}"}), 400
-    
     try:
-        # Run add_student.py with input
-        process = subprocess.Popen(
-            [sys.executable, ADD_STUDENT_SCRIPT],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            cwd=BASE_DIR,
-            text=True
-        )
+        # Load model if not loaded
+        model, _ = load_face_recognition()
         
-        # Provide inputs: student_id, name, image_path
-        stdout, stderr = process.communicate(input=f"{student_id}\n{name}\n{full_image_path}\n", timeout=60)
-        
-        if "Student added successfully" in stdout:
-            return jsonify({"success": True, "message": "Student registered successfully"})
-        elif "No face detected" in stdout:
-            return jsonify({"success": False, "message": "No face detected in the image"}), 400
+        # Process image
+        if image_data:
+            # Decode base64 image
+            try:
+                image_bytes = base64.b64decode(image_data.split(",")[1] if "," in image_data else image_data)
+                nparr = np.frombuffer(image_bytes, np.uint8)
+                img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+                
+                # Also save the image
+                os.makedirs(CAPTURED_IMAGES_DIR, exist_ok=True)
+                filename = f"{student_id}_{uuid.uuid4().hex[:8]}.jpg"
+                full_image_path = os.path.join(CAPTURED_IMAGES_DIR, filename)
+                cv2.imwrite(full_image_path, img)
+            except Exception as e:
+                return jsonify({"success": False, "message": f"Failed to decode image: {str(e)}"}), 400
         else:
-            return jsonify({"success": False, "message": stdout or stderr or "Unknown error"}), 500
-            
-    except subprocess.TimeoutExpired:
-        process.kill()
-        return jsonify({"success": False, "message": "Process timed out"}), 500
+            # Read from path
+            full_image_path = os.path.join(BASE_DIR, image_path) if not os.path.isabs(image_path) else image_path
+            if not os.path.exists(full_image_path):
+                return jsonify({"success": False, "message": f"Image not found: {image_path}"}), 400
+            img = cv2.imread(full_image_path)
+        
+        if img is None:
+            return jsonify({"success": False, "message": "Failed to read image"}), 400
+        
+        # Detect face and get embedding
+        faces = model.get(img)
+        
+        if len(faces) == 0:
+            return jsonify({"success": False, "message": "No face detected in the image"}), 400
+        
+        # Get embedding from first detected face
+        embedding = faces[0].embedding
+        
+        # Load current embeddings and add new student
+        db = load_embeddings()
+        db[student_id] = {
+            "name": name,
+            "embedding": embedding
+        }
+        save_embeddings(db)
+        save_student_to_csv(student_id, name)
+        
+        # Refresh the cached embeddings
+        embeddings_db = db
+        
+        return jsonify({
+            "success": True, 
+            "message": "Student registered successfully",
+            "student_id": student_id,
+            "name": name
+        })
+        
     except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
+        return jsonify({"success": False, "message": f"Registration error: {str(e)}"}), 500
 
 @app.route("/api/remove", methods=["POST", "OPTIONS"])
 def remove_student():
-    """API endpoint to remove a student by running remove_student.py"""
+    """API endpoint to remove a student directly (without subprocess)"""
+    global embeddings_db
+    
     # Handle preflight request
     if request.method == "OPTIONS":
         return jsonify({"status": "ok"}), 200
@@ -328,25 +349,24 @@ def remove_student():
         return jsonify({"success": False, "message": "Student ID is required"}), 400
     
     try:
-        # Run remove_student.py with input
-        process = subprocess.Popen(
-            [sys.executable, REMOVE_STUDENT_SCRIPT],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            cwd=BASE_DIR,
-            text=True
-        )
+        removed_db = remove_student_from_embeddings(student_id)
+        removed_csv = remove_student_from_csv(student_id)
         
-        # Provide input: student_id
-        stdout, stderr = process.communicate(input=f"{student_id}\n", timeout=30)
-        
-        if "removed successfully" in stdout:
-            return jsonify({"success": True, "message": f"Student {student_id} removed successfully"})
-        elif "not found" in stdout:
-            return jsonify({"success": False, "message": "Student ID not found"}), 404
+        if removed_db or removed_csv:
+            # Refresh the cached embeddings
+            embeddings_db = load_embeddings()
+            return jsonify({
+                "success": True, 
+                "message": f"Student {student_id} removed successfully"
+            })
         else:
-            return jsonify({"success": False, "message": stdout or stderr or "Unknown error"}), 500
+            return jsonify({
+                "success": False, 
+                "message": "Student ID not found"
+            }), 404
+            
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Removal error: {str(e)}"}), 500
             
     except subprocess.TimeoutExpired:
         process.kill()
@@ -490,5 +510,40 @@ def camera_status():
         "marked_count": len(marked_attendance)
     })
 
+
+@app.route("/api/clear-attendance", methods=["POST", "OPTIONS"])
+def clear_attendance():
+    """Clear today's attendance records"""
+    global marked_attendance
+    
+    if request.method == "OPTIONS":
+        return jsonify({"status": "ok"}), 200
+    
+    try:
+        # Clear the in-memory marked attendance set
+        marked_attendance.clear()
+        
+        # Optionally clear the CSV file (create backup first)
+        if os.path.exists(ATTENDANCE_CSV):
+            # Create backup
+            backup_path = ATTENDANCE_CSV.replace(".csv", f"_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv")
+            os.rename(ATTENDANCE_CSV, backup_path)
+            
+            # Create new empty file with header
+            with open(ATTENDANCE_CSV, "w", newline="", encoding="utf-8") as f:
+                writer = csv.writer(f)
+                # Don't write header as original file didn't have one
+        
+        return jsonify({
+            "success": True,
+            "message": "Attendance cleared successfully"
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": f"Error clearing attendance: {str(e)}"
+        }), 500
+
+
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    app.run(debug=True, host="0.0.0.0", port=5001)

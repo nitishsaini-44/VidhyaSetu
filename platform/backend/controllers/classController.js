@@ -1,5 +1,7 @@
 const Class = require('../models/Class');
 const User = require('../models/User');
+const Subject = require('../models/Subject'); // Import Subject model for populate
+const mongoose = require('mongoose');
 
 // @desc    Get all classes
 // @route   GET /api/classes
@@ -146,17 +148,52 @@ const deleteClass = async (req, res) => {
 // @access  Private
 const getClassStudents = async (req, res) => {
   try {
-    const classDoc = await Class.findById(req.params.id);
-    
-    if (!classDoc) {
-      return res.status(404).json({ message: 'Class not found' });
+    const classId = req.params.id;
+    let studentQuery = { role: 'student' };
+
+    // Check if it's a valid ObjectId
+    const isValidObjectId = mongoose.Types.ObjectId.isValid(classId) && 
+                            (new mongoose.Types.ObjectId(classId)).toString() === classId;
+
+    if (isValidObjectId) {
+      // Search students by ObjectId class reference
+      studentQuery.$or = [
+        { 'studentInfo.class': new mongoose.Types.ObjectId(classId) },
+        { 'studentInfo.class': classId },
+        { 'class_id': classId }
+      ];
+    } else {
+      // It's a string class name like "9-A" or "9a"
+      // Search by string match (case-insensitive)
+      const classNameRegex = new RegExp(`^${classId}$`, 'i');
+      studentQuery.$or = [
+        { 'studentInfo.class': classId },
+        { 'studentInfo.class': classNameRegex },
+        { 'class_id': classId },
+        { 'class_id': classNameRegex }
+      ];
+      
+      // Also try to find Class document and search by its ObjectId
+      const classMatch = classId.match(/^(\d+)-?([A-Za-z])?$/i);
+      if (classMatch) {
+        const grade = classMatch[1];
+        const section = classMatch[2]?.toUpperCase() || 'A';
+        const classDoc = await Class.findOne({ 
+          $or: [
+            { grade: grade, section: section },
+            { name: new RegExp(`^Class\\s*${grade}[\\s-]*${section}$`, 'i') },
+            { name: new RegExp(`^${grade}[\\s-]*${section}$`, 'i') }
+          ]
+        });
+        if (classDoc) {
+          studentQuery.$or.push({ 'studentInfo.class': classDoc._id });
+        }
+      }
     }
 
-    // Find students whose studentInfo.class matches this class
-    const students = await User.find({
-      role: 'student',
-      'studentInfo.class': req.params.id
-    }).select('name email studentInfo.rollNumber studentInfo.admissionNumber avatar');
+    // Find students matching the query
+    const students = await User.find(studentQuery)
+      .select('name email studentInfo.rollNumber studentInfo.admissionNumber avatar');
 
     res.json(students);
   } catch (error) {
@@ -241,6 +278,97 @@ const seedClasses = async (req, res) => {
   }
 };
 
+// @desc    Get classes with enrolled students (for teacher resource/quiz creation)
+// @route   GET /api/classes/with-students
+// @access  Private (Teacher)
+const getClassesWithStudents = async (req, res) => {
+  try {
+    // Get all students with class info
+    const studentsWithClass = await User.find({ 
+      role: 'student',
+      $or: [
+        { 'studentInfo.class': { $exists: true, $ne: null, $ne: '' } },
+        { 'class_id': { $exists: true, $ne: null, $ne: '' } }
+      ]
+    }).select('studentInfo.class class_id').populate('studentInfo.class', 'name section grade');
+
+    // Extract unique class identifiers
+    const classMap = new Map(); // Map to store class info by identifier
+    
+    for (const student of studentsWithClass) {
+      const classValue = student.studentInfo?.class || student.class_id;
+      if (!classValue) continue;
+      
+      let classId, className;
+      
+      // Check if it's a populated object
+      if (typeof classValue === 'object' && classValue.name) {
+        classId = classValue._id?.toString() || classValue.name;
+        className = classValue.name + (classValue.section ? `-${classValue.section}` : '');
+      } else {
+        const classStr = String(classValue);
+        // If it's an ObjectId, try to look it up
+        if (/^[a-fA-F0-9]{24}$/.test(classStr)) {
+          // It's an ObjectId - we'll look up the name later
+          classId = classStr;
+          className = null; // Will be looked up
+        } else {
+          // It's a string class name like "10-A"
+          classId = classStr;
+          className = classStr;
+        }
+      }
+      
+      if (!classMap.has(classId)) {
+        classMap.set(classId, { classId, className, count: 0 });
+      }
+      classMap.get(classId).count++;
+    }
+
+    // Look up names for ObjectId classes
+    const result = [];
+    for (const [classId, data] of classMap) {
+      let displayName = data.className;
+      
+      // If className is null, it's an ObjectId - try to look up
+      if (!displayName && /^[a-fA-F0-9]{24}$/.test(classId)) {
+        try {
+          const classDoc = await Class.findById(classId).select('name section grade');
+          if (classDoc) {
+            displayName = classDoc.name + (classDoc.section ? `-${classDoc.section}` : '');
+          }
+        } catch (e) {
+          // Skip if lookup fails
+          continue;
+        }
+      }
+      
+      // Only add if we have a valid display name (not an ObjectId)
+      if (displayName && !/^[a-fA-F0-9]{24}$/.test(displayName)) {
+        result.push({
+          _id: classId,
+          name: displayName,
+          displayName: displayName.startsWith('Class') ? displayName : `Class ${displayName}`,
+          studentCount: data.count
+        });
+      }
+    }
+
+    // Sort by class name
+    result.sort((a, b) => {
+      const numA = parseInt(a.name) || 0;
+      const numB = parseInt(b.name) || 0;
+      if (numA !== numB) return numA - numB;
+      return a.name.localeCompare(b.name);
+    });
+
+    res.json(result);
+  } catch (error) {
+    console.error('getClassesWithStudents error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
 module.exports = {
   getClasses,
   getClassById,
@@ -249,5 +377,6 @@ module.exports = {
   deleteClass,
   getClassStudents,
   addStudentToClass,
-  seedClasses
+  seedClasses,
+  getClassesWithStudents
 };

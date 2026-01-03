@@ -67,13 +67,11 @@ const quizSchema = new mongoose.Schema({
   
   // Subject and class
   subject: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Subject',
+    type: mongoose.Schema.Types.Mixed, // Can be ObjectId or String
     required: true
   },
   class: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Class',
+    type: mongoose.Schema.Types.Mixed, // Can be ObjectId or String
     required: true
   },
   

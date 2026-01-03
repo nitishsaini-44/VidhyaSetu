@@ -1,4 +1,4 @@
-# VidyaSetu AI - Educational Platform
+# VidyaSetu AI - Smart Educational Platform
 
 A comprehensive MERN stack educational platform with role-based access control, integrating with a face recognition attendance system.
 

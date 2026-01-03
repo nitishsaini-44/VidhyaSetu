@@ -30,20 +30,49 @@ const ManagementReports = () => {
 
       setAttendanceData(attendanceRes.data);
 
-      // Process attendance by date
+      // Process attendance by date - handle the nested records structure
       const byDate = {};
-      attendanceRes.data.forEach(record => {
-        if (!byDate[record.date]) {
-          byDate[record.date] = { present: 0, absent: 0, late: 0, total: 0 };
+      attendanceRes.data.forEach(attendance => {
+        const dateKey = new Date(attendance.date).toISOString().split('T')[0];
+        
+        if (!byDate[dateKey]) {
+          byDate[dateKey] = { present: 0, absent: 0, late: 0, excused: 0, total: 0 };
         }
-        byDate[record.date][record.status.toLowerCase()]++;
-        byDate[record.date].total++;
+        
+        // Check if attendance has summary object (pre-calculated stats)
+        if (attendance.summary && attendance.summary.totalStudents > 0) {
+          byDate[dateKey].present += attendance.summary.present || 0;
+          byDate[dateKey].absent += attendance.summary.absent || 0;
+          byDate[dateKey].late += attendance.summary.late || 0;
+          byDate[dateKey].excused += attendance.summary.excused || 0;
+          byDate[dateKey].total += attendance.summary.totalStudents || 0;
+        } 
+        // Otherwise, process individual records array
+        else if (attendance.records && attendance.records.length > 0) {
+          attendance.records.forEach(record => {
+            const status = record.status?.toLowerCase();
+            if (status === 'present') byDate[dateKey].present++;
+            else if (status === 'absent') byDate[dateKey].absent++;
+            else if (status === 'late') byDate[dateKey].late++;
+            else if (status === 'excused') byDate[dateKey].excused++;
+            byDate[dateKey].total++;
+          });
+        }
+        // Handle flat attendance structure (for student view)
+        else if (attendance.status) {
+          const status = attendance.status.toLowerCase();
+          if (status === 'present') byDate[dateKey].present++;
+          else if (status === 'absent') byDate[dateKey].absent++;
+          else if (status === 'late') byDate[dateKey].late++;
+          else if (status === 'excused') byDate[dateKey].excused++;
+          byDate[dateKey].total++;
+        }
       });
 
       setPerformanceData(Object.entries(byDate).map(([date, stats]) => ({
         date,
         ...stats,
-        percentage: Math.round(((stats.present + stats.late) / stats.total) * 100)
+        percentage: stats.total > 0 ? Math.round(((stats.present + stats.late) / stats.total) * 100) : 0
       })).sort((a, b) => new Date(b.date) - new Date(a.date)));
 
     } catch (error) {

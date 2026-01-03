@@ -11,7 +11,10 @@ import {
   FiMessageSquare,
   FiFileText,
   FiLogOut,
-  FiSettings
+  FiSettings,
+  FiCamera,
+  FiClipboard,
+  FiEdit
 } from 'react-icons/fi';
 
 const Layout = () => {
@@ -32,12 +35,15 @@ const Layout = () => {
           { path: '/student/dashboard', label: 'Dashboard', icon: FiHome },
           { path: '/student/attendance', label: 'My Attendance', icon: FiCalendar },
           { path: '/student/performance', label: 'Performance', icon: FiBarChart2 },
+          { path: '/student/quiz', label: 'Quizzes', icon: FiEdit },
+          { path: '/student/ai-assistant', label: 'AI Assistant', icon: FiMessageSquare },
         ];
       case 'teacher':
         return [
           { path: '/teacher/dashboard', label: 'Dashboard', icon: FiHome },
           { path: '/teacher/attendance', label: 'Attendance', icon: FiCalendar },
           { path: '/teacher/resources', label: 'Resources', icon: FiBook },
+          { path: '/teacher/quiz-history', label: 'Quiz History', icon: FiClipboard },
           { path: '/teacher/students', label: 'Students', icon: FiUsers },
           { path: '/teacher/ai-assistant', label: 'AI Assistant', icon: FiMessageSquare },
         ];
@@ -45,6 +51,7 @@ const Layout = () => {
         return [
           { path: '/management/dashboard', label: 'Dashboard', icon: FiHome },
           { path: '/management/users', label: 'Manage Users', icon: FiUsers },
+          { path: '/management/face-recognition', label: 'Face Recognition', icon: FiCamera },
           { path: '/management/reports', label: 'Reports', icon: FiFileText },
         ];
       default:
@@ -68,7 +75,7 @@ const Layout = () => {
       {/* Sidebar */}
       <aside className="sidebar">
         <div className="sidebar-header">
-          <h2>🎓 VidyaSetu</h2>
+          <h2>🎓 VidyaSetu AI</h2>
           <span>{getRoleLabel()}</span>
         </div>
 

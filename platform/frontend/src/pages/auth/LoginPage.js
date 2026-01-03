@@ -43,8 +43,8 @@ const LoginPage = () => {
     <div className="auth-container">
       <div className="auth-card">
         <div className="auth-logo">
-          <h1>🎓 VidyaSetu AI</h1>
-          <p>Smart Educational Platform</p>
+           <h1>🎓 VidyaSetu AI</h1>
+           <p>VidyaSetu AI - Smart Educational Platform</p>
         </div>
 
         <form className="auth-form" onSubmit={handleSubmit}>
