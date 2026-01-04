@@ -1,3 +1,10 @@
+// Defensive helper to always return an array
+function safeArray(val) {
+  if (Array.isArray(val)) return val;
+  if (val == null) return [];
+  if (typeof val === 'object' && typeof val.length === 'number') return Array.from(val);
+  return [];
+}
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
@@ -323,9 +330,9 @@ const ManagementDashboard = () => {
             </div>
           </div>
 
-          {Array.isArray(todayAttendance) && todayAttendance.length > 0 ? (
+          {safeArray(todayAttendance).length > 0 ? (
             <div style={{ maxHeight: '150px', overflowY: 'auto' }}>
-              {todayAttendance.slice(0, 5).map((record, idx) => (
+              {safeArray(todayAttendance).slice(0, 5).map((record, idx) => (
                 <div 
                   key={idx}
                   style={{
