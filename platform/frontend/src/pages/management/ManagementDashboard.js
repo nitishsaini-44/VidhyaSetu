@@ -325,7 +325,7 @@ const ManagementDashboard = () => {
 
           {Array.isArray(todayAttendance) && todayAttendance.length > 0 ? (
             <div style={{ maxHeight: '150px', overflowY: 'auto' }}>
-              {(Array.isArray(todayAttendance) ? todayAttendance : Array.isArray(todayAttendance) ? todayAttendance : []).slice(0, 5).map((record, idx) => (
+              {todayAttendance.slice(0, 5).map((record, idx) => (
                 <div 
                   key={idx}
                   style={{
@@ -341,7 +341,7 @@ const ManagementDashboard = () => {
                     <span style={{ fontWeight: '500' }}>{record.name}</span>
                   </div>
                   <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                    {new Date(record.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {record.time ? new Date(record.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                   </span>
                 </div>
               ))}
