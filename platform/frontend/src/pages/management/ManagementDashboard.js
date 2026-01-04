@@ -325,7 +325,7 @@ const ManagementDashboard = () => {
 
           {Array.isArray(todayAttendance) && todayAttendance.length > 0 ? (
             <div style={{ maxHeight: '150px', overflowY: 'auto' }}>
-              {(Array.isArray(todayAttendance) ? todayAttendance : []).slice(0, 5).map((record, idx) => (
+              {(Array.isArray(todayAttendance) ? todayAttendance : Array.isArray(todayAttendance) ? todayAttendance : []).slice(0, 5).map((record, idx) => (
                 <div 
                   key={idx}
                   style={{
