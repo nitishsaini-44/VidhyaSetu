@@ -13,29 +13,29 @@ class FaceRecognitionService {
   constructor() {
     // API Configuration - supports multiple providers
     this.provider = process.env.FACE_API_PROVIDER || 'local'; // 'azure', 'aws', 'facepp', 'local'
-    
+
     // Azure Face API Configuration
     this.azureEndpoint = process.env.AZURE_FACE_ENDPOINT;
     this.azureApiKey = process.env.AZURE_FACE_API_KEY;
     this.azurePersonGroupId = process.env.AZURE_PERSON_GROUP_ID || 'vidyasetu-ai-students';
-    
+
     // Face++ API Configuration
     this.faceppApiKey = process.env.FACEPP_API_KEY;
     this.faceppApiSecret = process.env.FACEPP_API_SECRET;
     this.faceppFacesetToken = null;
-    
+
     // AWS Rekognition Configuration
     this.awsRegion = process.env.AWS_REGION || 'us-east-1';
     this.awsCollectionId = process.env.AWS_COLLECTION_ID || 'vidyasetu-ai-students';
-    
+
     // Local storage for face data (fallback/local mode)
     this.localDataPath = path.join(__dirname, '../data/faces');
     this.faceDatabase = new Map();
     this.attendanceRecords = new Map();
-    
+
     // Ensure data directory exists
     this.ensureDataDirectory();
-    
+
     // Load existing face data
     this.loadFaceDatabase();
   }
@@ -49,7 +49,7 @@ class FaceRecognitionService {
       this.localDataPath,
       path.join(__dirname, '../data/attendance')
     ];
-    
+
     directories.forEach(dir => {
       if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
@@ -127,21 +127,41 @@ class FaceRecognitionService {
    * Extract base64 image data from data URL and clean it
    */
   extractBase64(imageData) {
+    if (!imageData || typeof imageData !== 'string') {
+      throw new Error('Invalid image data provided');
+    }
+
     let base64 = imageData;
-    
-    // Remove data URL prefix if present
-    if (imageData.startsWith('data:image')) {
-      base64 = imageData.split(',')[1];
+
+    // Remove data URL prefix if present (handles jpeg, png, gif, webp, etc.)
+    if (imageData.includes('base64,')) {
+      base64 = imageData.split('base64,')[1];
+    } else if (imageData.startsWith('data:')) {
+      // Handle malformed data URLs
+      const commaIndex = imageData.indexOf(',');
+      if (commaIndex !== -1) {
+        base64 = imageData.substring(commaIndex + 1);
+      }
     }
-    
-    // Remove any whitespace or newlines
-    base64 = base64.replace(/\s/g, '');
-    
+
+    // Remove any whitespace, newlines, or invalid characters
+    base64 = base64.replace(/[\s\r\n]/g, '');
+
+    // Remove any non-base64 characters (keep only A-Z, a-z, 0-9, +, /, =)
+    base64 = base64.replace(/[^A-Za-z0-9+/=]/g, '');
+
     // Ensure proper padding
-    while (base64.length % 4 !== 0) {
-      base64 += '=';
+    const paddingNeeded = (4 - (base64.length % 4)) % 4;
+    base64 = base64 + '='.repeat(paddingNeeded);
+
+    // Validate base64 string
+    if (base64.length < 100) {
+      console.error('Base64 string too short:', base64.length);
+      throw new Error('Invalid image data - too short');
     }
-    
+
+    console.log('Extracted base64 length:', base64.length, 'First 50 chars:', base64.substring(0, 50));
+
     return base64;
   }
 
@@ -339,7 +359,7 @@ class FaceRecognitionService {
           console.log(`Face++ retry ${attempt}/${maxRetries}, waiting ${waitTime}ms...`);
           await this.delay(waitTime);
         }
-        
+
         const response = await axios.post(
           url,
           params.toString(),
@@ -353,7 +373,7 @@ class FaceRecognitionService {
       } catch (error) {
         const errorMsg = error.response?.data?.error_message;
         console.log(`Face++ API attempt ${attempt} error:`, errorMsg);
-        
+
         if (errorMsg === 'CONCURRENCY_LIMIT_EXCEEDED' && attempt < maxRetries) {
           continue; // Will retry with delay
         }
@@ -389,7 +409,7 @@ class FaceRecognitionService {
       if (error.response?.data?.error_message?.includes('FACESET_EXIST')) {
         // Wait before getting existing faceset
         await this.delay(1500);
-        
+
         // Get existing faceset with retry
         const getParams = new URLSearchParams();
         getParams.append('api_key', this.faceppApiKey);
@@ -414,13 +434,13 @@ class FaceRecognitionService {
     try {
       // Ensure faceset exists
       await this.faceppCreateFaceSet();
-      
+
       // Add delay after faceset creation to avoid rate limit
       await this.delay(1500);
 
       // Clean the base64 string
       const cleanBase64 = imageBase64.replace(/\s/g, '');
-      
+
       console.log('Face++ registration - Image base64 length:', cleanBase64.length);
 
       // Create form data for detect request
@@ -552,15 +572,15 @@ class FaceRecognitionService {
     try {
       // Generate a unique identifier for this face
       const faceId = this.generateFaceId();
-      
+
       // Create hash of image for basic deduplication
       const imageHash = crypto.createHash('sha256').update(imageBase64).digest('hex');
-      
+
       // Store face image
       const imagePath = path.join(this.localDataPath, `${studentId}.jpg`);
       const imageBuffer = Buffer.from(imageBase64, 'base64');
       fs.writeFileSync(imagePath, imageBuffer);
-      
+
       // Store face data
       const faceData = {
         studentId,
@@ -571,10 +591,10 @@ class FaceRecognitionService {
         registeredAt: new Date().toISOString(),
         provider: 'local'
       };
-      
+
       this.faceDatabase.set(studentId, faceData);
       this.saveFaceDatabase();
-      
+
       return {
         success: true,
         studentId,
@@ -609,20 +629,20 @@ class FaceRecognitionService {
    */
   async registerFace(studentId, name, imageData) {
     const imageBase64 = this.extractBase64(imageData);
-    
+
     switch (this.provider) {
       case 'azure':
         if (!this.azureApiKey || !this.azureEndpoint) {
           throw new Error('Azure Face API credentials not configured');
         }
         return await this.azureRegisterFace(studentId, name, imageBase64);
-        
+
       case 'facepp':
         if (!this.faceppApiKey || !this.faceppApiSecret) {
           throw new Error('Face++ API credentials not configured');
         }
         return await this.faceppRegisterFace(studentId, name, imageBase64);
-        
+
       case 'local':
       default:
         return await this.localRegisterFace(studentId, name, imageBase64);
@@ -634,20 +654,20 @@ class FaceRecognitionService {
    */
   async recognizeFace(imageData) {
     const imageBase64 = this.extractBase64(imageData);
-    
+
     switch (this.provider) {
       case 'azure':
         if (!this.azureApiKey || !this.azureEndpoint) {
           throw new Error('Azure Face API credentials not configured');
         }
         return await this.azureRecognizeFace(imageBase64);
-        
+
       case 'facepp':
         if (!this.faceppApiKey || !this.faceppApiSecret) {
           throw new Error('Face++ API credentials not configured');
         }
         return await this.faceppRecognizeFace(imageBase64);
-        
+
       case 'local':
       default:
         return await this.localRecognizeFace(imageBase64);
@@ -770,10 +790,10 @@ class FaceRecognitionService {
    */
   markAttendance(studentId, name, confidence) {
     this.loadTodayAttendance();
-    
+
     const now = new Date();
     const attendanceKey = studentId;
-    
+
     // Check if already marked
     if (this.attendanceRecords.has(attendanceKey)) {
       return {
@@ -784,7 +804,7 @@ class FaceRecognitionService {
         message: 'Attendance already marked for today'
       };
     }
-    
+
     // Mark attendance
     this.attendanceRecords.set(attendanceKey, {
       student_id: studentId,
@@ -793,9 +813,9 @@ class FaceRecognitionService {
       confidence: confidence,
       date: now.toISOString().split('T')[0]
     });
-    
+
     this.saveTodayAttendance();
-    
+
     return {
       success: true,
       already_marked: false,
@@ -853,7 +873,7 @@ class FaceRecognitionService {
       provider: this.provider,
       api_configured: this.isApiConfigured(),
       total_registered: this.faceDatabase.size,
-      message: this.isApiConfigured() 
+      message: this.isApiConfigured()
         ? `Face Recognition service running with ${this.provider} provider`
         : 'Service running in local mode. Configure API keys for cloud recognition.'
     };
