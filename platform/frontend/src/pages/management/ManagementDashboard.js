@@ -1,10 +1,3 @@
-// Defensive helper to always return an array
-function safeArray(val) {
-  if (Array.isArray(val)) return val;
-  if (val == null) return [];
-  if (typeof val === 'object' && typeof val.length === 'number') return Array.from(val);
-  return [];
-}
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
@@ -14,6 +7,14 @@ import {
   FiRefreshCw, FiArrowRight, FiActivity, FiAward, FiPieChart
 } from 'react-icons/fi';
 import { toast } from 'react-toastify';
+
+// Defensive helper to always return an array
+function safeArray(val) {
+  if (Array.isArray(val)) return val;
+  if (val == null) return [];
+  if (typeof val === 'object' && typeof val.length === 'number') return Array.from(val);
+  return [];
+}
 
 const ManagementDashboard = () => {
   const navigate = useNavigate();
@@ -330,9 +331,9 @@ const ManagementDashboard = () => {
             </div>
           </div>
 
-          {safeArray(todayAttendance).length > 0 ? (
+          {Array.isArray(todayAttendance) && todayAttendance.length > 0 ? (
             <div style={{ maxHeight: '150px', overflowY: 'auto' }}>
-              {safeArray(todayAttendance).slice(0, 5).map((record, idx) => (
+              {todayAttendance.slice(0, 5).map((record, idx) => (
                 <div 
                   key={idx}
                   style={{
