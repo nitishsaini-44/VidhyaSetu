@@ -1,7 +1,7 @@
 const { GoogleGenAI } = require('@google/genai');
 
 // Initialize Gemini AI with new SDK
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyAnZJKmNPn2cLO8Mmbh9zhEq7IT91a9hH4';
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 
 // Default model - Gemini 2.5 Flash
